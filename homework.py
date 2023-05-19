@@ -69,7 +69,6 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверка ответа API."""
-    # homewoks = response.get("homeworks")
     if not isinstance(response, dict):
         logging.error("Не верный формат данных.")
         raise TypeError("Не верный формат данных.")
