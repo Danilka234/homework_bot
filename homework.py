@@ -1,3 +1,4 @@
+from http import HTTPStatus
 import sys
 import time
 import os
@@ -60,7 +61,7 @@ def get_api_answer(timestamp):
     except requests.RequestException as error:
         logging.error(f"Ошибка службы API {error}")
         raise TypeError(f"Ошибка службы API {error}")
-    if response.status_code != 200:
+    if response.status_code != HTTPStatus.OK:
         logging.error(f"Ошибка {response.status_code}")
         raise ValueError(f"Ошибка {response.status_code}")
     return response.json()
@@ -68,20 +69,19 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверка ответа API."""
-    if type(response) == dict:
-        try:
-            if type(response.get("homeworks")) == list:
-                logging.info("Список проверен и передан.")
-                return response.get("homeworks")[0]
-        except IndexError:
-            logging.error("Отсувстует информация о домашней работе.")
-            raise IndexError("Отсувстует информация о домашней работе.")
-        else:
-            logging.error("Не верный формат данных.")
-            raise TypeError("Не верный формат данных.")
-    else:
+    # homewoks = response.get("homeworks")
+    if not isinstance(response, dict):
         logging.error("Не верный формат данных.")
         raise TypeError("Не верный формат данных.")
+    homewoks = response.get("homeworks")
+    if not isinstance(homewoks, list):
+        logging.error("Не верный формат данных.")
+        raise TypeError("Не верный формат данных.")
+    if not homewoks:
+        logging.error("Отсувстует информация о домашней работе.")
+        raise IndexError("Отсувстует информация о домашней работе.")
+    logging.info("Список проверен и передан.")
+    return homewoks[0]
 
 
 def parse_status(homeworks):
@@ -89,16 +89,12 @@ def parse_status(homeworks):
     if "homework_name" not in homeworks:
         logging.error("Отсувстует информация о домашней работе.")
         raise Exception("Ваша работа еще не взята на проверку.")
-    else:
-        homework_name = homeworks["homework_name"]
-        for key, value in HOMEWORK_VERDICTS.items():
-            if key not in HOMEWORK_VERDICTS.keys():
-                logging.error("Отсувствует статус работы.")
-                raise Exception("Отсувствует статус работы.")
-            elif key == homeworks["status"]:
-                verdict = value
-        logging.debug("Успешно извлечен статус домашней работы.")
-        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
+    homework_name = homeworks["homework_name"]
+    for key, value in HOMEWORK_VERDICTS.items():
+        if key == homeworks["status"]:
+            verdict = value
+    logging.debug("Успешно извлечен статус домашней работы.")
+    return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def main():
@@ -117,9 +113,9 @@ def main():
             homeworks = check_response(response)
             if homeworks:
                 message = parse_status(homeworks)
-                if cache_message != message:
-                    send_message(bot, message)
-                    cache_message = message
+            if cache_message != message:
+                send_message(bot, message)
+                cache_message = message
             time.sleep(RETRY_PERIOD)
         except Exception as error:
             message_error = f"Сбой работы в программе. {error}"
